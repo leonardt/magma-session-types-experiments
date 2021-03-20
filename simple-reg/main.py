@@ -56,7 +56,6 @@ tester.advance_cycle()
 tester.circuit.power_on = 0
 
 # Should no longer be x (instead random value, computed statically for testing)
-# NOTE: Depends on https://github.com/leonardt/fault/pull/302
 tester.assert_(tester.circuit.accum_output != f.UnknownValue)
 tester.circuit.accum_output.expect(rand_value)
 
