@@ -1,5 +1,5 @@
 from hwtypes import BitVector
-from session import Epsilon, Receive, Send, Offer, Choose
+from session import Epsilon, Receive, Send, Offer, Choose, Dual
 
 
 ATMAuth = Offer[
@@ -10,3 +10,5 @@ ATMAuth = Offer[
 ]
 
 ATM = Receive[BitVector[32], Choose[ATMAuth, Epsilon]]
+print(ATM)
+print(Dual(ATM))
