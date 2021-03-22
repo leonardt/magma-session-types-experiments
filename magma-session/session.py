@@ -62,4 +62,17 @@ def Dual(T):
         return Send(T.data_type, Dual(T.next))
     if T is Epsilon:
         return T
+    if isinstance(T, Rec):
+        return Rec(T.name, Dual(T.T))
+    if isinstance(T, str):
+        return T
     raise TypeError(f"Unsupport type {T}")
+
+
+class Rec:
+    def __init__(self, name, T):
+        self.name = name
+        self.T = T
+
+    def __repr__(self):
+        return f"Rec(\"{self.name}\", {self.T}"
