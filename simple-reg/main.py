@@ -50,6 +50,12 @@ tester.expect(Main.accum_output, f.UnknownValue)
 tester.advance_cycle()
 tester.expect(Main.accum_output, f.UnknownValue)
 
+# boot without power on should still be x
+tester.circuit.boot = 1
+tester.advance_cycle()
+tester.circuit.boot = 0
+tester.expect(Main.accum_output, f.UnknownValue)
+
 # test power on sequence
 tester.circuit.power_on = 1
 tester.advance_cycle()
@@ -72,6 +78,12 @@ for _ in range(4):
     tester.advance_cycle()
     curr_sum += accum_amt
     tester.circuit.accum_output.expect(curr_sum)
+
+# power on after boot should be random value
+tester.circuit.power_on = 1
+tester.advance_cycle()
+tester.circuit.power_on = 0
+tester.circuit.accum_output.expect(rand_value)
 
 # Need to use iverilog (versus verilator) for X support
 tester.compile_and_run("system-verilog", simulator="iverilog")
