@@ -1,6 +1,5 @@
 from hwtypes import BitVector
-from session import (Epsilon, Receive, Send, Offer, Choose, Dual, Channel,
-                     Branch)
+from session import Epsilon, Receive, Send, Offer, Choose, Dual, Channel
 
 
 ATMAuth = Offer[
@@ -11,7 +10,8 @@ ATMAuth = Offer[
 
 ATM = Receive[BitVector[32], Choose[("ok", ATMAuth), ("err", Epsilon)]]
 print(ATM)
-print(Dual(ATM))
+Client = Dual(ATM)
+print(Client)
 
 
 def approved(id):
@@ -49,3 +49,20 @@ def atm(c: Channel[ATM]):
             c.left().close()
         else:
             c.right().close()
+
+
+def client(c: Channel[Client]):
+    id = 2
+    c.send(id)
+    choice = c.offer()
+    if choice == "ok":
+        c.choose("withdraw")
+        c.send(95)
+        choice = c.offer()
+        if choice == "ok":
+            print("Withdraw succeeded")
+        elif choice == "err":
+            print("Insufficient funds")
+    elif choice == "err":
+        print("Invalid auth")
+    c.close()

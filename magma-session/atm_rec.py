@@ -52,3 +52,27 @@ def atm(c: Channel[ATM]):
                 c.right().close()
         elif choice == "exit":
             c.close()
+
+
+def client(c: Channel[Client]):
+    id = 2
+    c.send(id)
+    choice = c.offer()
+    if choice == "ok":
+        c.choose("deposit")
+        c.send(5)
+        choice = c.offer()
+        if choice == "ok":
+            print("Deposit succeeded")
+        elif choice == "err":
+            print("Insufficient funds")
+        c.choose("withdraw")
+        c.send(305)
+        choice = c.offer()
+        if choice == "ok":
+            print("Withdraw succeeded")
+        elif choice == "err":
+            print("Insufficient funds")
+    elif choice == "err":
+        print("Invalid auth")
+    c.close()
