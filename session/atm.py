@@ -1,5 +1,6 @@
 from hwtypes import BitVector
 from session import Epsilon, Receive, Send, Offer, Choose, Dual, Channel
+from check import check
 
 
 ATMAuth = Offer[
@@ -9,9 +10,7 @@ ATMAuth = Offer[
 ]
 
 ATM = Receive[BitVector[32], Choose[("ok", ATMAuth), ("err", Epsilon)]]
-print(ATM)
 Client = Dual(ATM)
-print(Client)
 
 
 def approved(id):
@@ -29,40 +28,45 @@ def set_balance(id, balance):
     balances[id] = balance
 
 
+@check
 def atm(c: Channel[ATM]):
     id = c.receive()
     if not approved(id):
-        c.right.close()
-        return
-    balance = get_balance(id)
-    c.left()
-    choice = c.offer()
-    if choice == "deposit":
-        amount = c.receive()
-        balance += amount
-        set_balance(id, balance)
-        c.send(balance)
-    elif choice == "withdraw":
-        amount = c.receive()
-        if balance >= amount:
-            balance -= amount
-            c.left().close()
-        else:
-            c.right().close()
+        # c.choose('err').close()
+        c.choose('err')
+        c.close()
+        # return
+    else:
+        balance = get_balance(id)
+        c.choose('ok')
+        if c.offer("deposit"):
+            amount = c.receive()
+            balance += amount
+            set_balance(id, balance)
+            c.send(balance)
+            c.close()
+        elif c.offer("withdraw"):
+            amount = c.receive()
+            if balance >= amount:
+                balance -= amount
+                c.choose('ok')
+                c.close()
+            else:
+                c.choose('err')
+                c.close()
 
 
+@check
 def client(c: Channel[Client]):
     id = 2
     c.send(id)
-    choice = c.offer()
-    if choice == "ok":
+    if c.offer("ok"):
         c.choose("withdraw")
         c.send(95)
-        choice = c.offer()
-        if choice == "ok":
+        if c.offer("ok"):
             print("Withdraw succeeded")
-        elif choice == "err":
+        elif c.offer("err"):
             print("Insufficient funds")
-    elif choice == "err":
+    elif c.offer("err"):
         print("Invalid auth")
     c.close()
