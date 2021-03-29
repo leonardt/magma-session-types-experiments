@@ -20,7 +20,8 @@ class SessionTypeWithData(SessionType):
         self.next = next
 
     def __repr__(self):
-        return f"{type(self).__name__}[{str(self.data_type)}, {str(self.next)}]"
+        name_str = type(self).__name__
+        return f"{name_str}[{str(self.data_type)}, {str(self.next)}]"
 
 
 class Receive(SessionTypeWithData):
