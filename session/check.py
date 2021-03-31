@@ -1,14 +1,17 @@
 import session
 import ast
 import inspect
+import textwrap
 
 
 class Checker(ast.NodeVisitor):
-    def __init__(self, c_T):
+    def __init__(self, c_T, filename, line_offset):
         super().__init__()
         self.c_T = c_T
         self.offer_stack = []
         self.rec_Ts = {}
+        self.filename = filename
+        self.line_offset = line_offset
 
     def visit_Call(self, node):
         if isinstance(self.c_T, session.Rec):
@@ -24,6 +27,15 @@ class Checker(ast.NodeVisitor):
         if not match:
             return
         if node.func.attr == "close":
+            if self.c_T is not session.Epsilon:
+                with open(self.filename) as f:
+                    file_str = f.read().splitlines()
+                lineno = node.lineno + self.line_offset - 1
+                raise SyntaxError(
+                    f"Expected type Epsilon when calling closed, found "
+                    f"{self.c_T} instead",
+                    (self.filename, lineno, node.col_offset, file_str[lineno])
+                )
             assert self.c_T is session.Epsilon
             self.c_T = None
         elif node.func.attr == "send":
@@ -31,7 +43,15 @@ class Checker(ast.NodeVisitor):
             # TODO: Check datatype
             self.c_T = self.c_T.next
         elif node.func.attr == "receive":
-            assert isinstance(self.c_T, session.Receive)
+            if not isinstance(self.c_T, session.Receive):
+                with open(self.filename) as f:
+                    file_str = f.read().splitlines()
+                lineno = node.lineno + self.line_offset - 1
+                raise SyntaxError(
+                    f"Expected type Receive when calling receive, found "
+                    f"{self.c_T} instead",
+                    (self.filename, lineno, node.col_offset, file_str[lineno])
+                )
             # TODO: Check datatype
             self.c_T = self.c_T.next
         elif node.func.attr == "choose":
@@ -55,7 +75,6 @@ class Checker(ast.NodeVisitor):
         for child in node.body:
             self.visit(child)
         self.c_T = None
-
 
     def visit_Return(self, node):
         assert self.c_T is None, self.c_T
@@ -102,5 +121,6 @@ def check(fn):
     annotations = fn.__annotations__
     assert 'c' in annotations
     c_T = annotations['c'].T
-    tree = ast.parse(inspect.getsource(fn))
-    Checker(c_T).visit(tree)
+    caller = inspect.getframeinfo(inspect.stack()[1][0])
+    tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    Checker(c_T, caller.filename, caller.lineno - 2).visit(tree)

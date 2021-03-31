@@ -41,49 +41,51 @@ class Main(m.Circuit):
     io.accum_output @= m.mux([X().O, accum_reg.O], powered_on.O)
 
 
-tester = f.SynchronousTester(Main)
+if __name__ == "__main__":
+    tester = f.SynchronousTester(Main)
 
-# Need to advance once to propogate values
-tester.advance_cycle()
-# Should be x initially
-tester.expect(Main.accum_output, f.UnknownValue)
-tester.advance_cycle()
-tester.expect(Main.accum_output, f.UnknownValue)
-
-# boot without power on should still be x
-tester.circuit.boot = 1
-tester.advance_cycle()
-tester.circuit.boot = 0
-tester.expect(Main.accum_output, f.UnknownValue)
-
-# test power on sequence
-tester.circuit.power_on = 1
-tester.advance_cycle()
-tester.circuit.power_on = 0
-
-# Should no longer be x (instead random value, computed statically for testing)
-tester.assert_(tester.circuit.accum_output != f.UnknownValue)
-tester.circuit.accum_output.expect(rand_value)
-
-# Check boot with curr sum set externally
-tester.circuit.boot = 1
-tester.circuit.curr_sum = curr_sum = ht.BitVector.random(8)
-tester.advance_cycle()
-tester.circuit.boot = 0
-tester.circuit.accum_output.expect(curr_sum)
-
-# Test sum functionality
-for _ in range(4):
-    tester.circuit.accum_input = accum_amt = ht.BitVector.random(8)
+    # Need to advance once to propogate values
     tester.advance_cycle()
-    curr_sum += accum_amt
+    # Should be x initially
+    tester.expect(Main.accum_output, f.UnknownValue)
+    tester.advance_cycle()
+    tester.expect(Main.accum_output, f.UnknownValue)
+
+    # boot without power on should still be x
+    tester.circuit.boot = 1
+    tester.advance_cycle()
+    tester.circuit.boot = 0
+    tester.expect(Main.accum_output, f.UnknownValue)
+
+    # test power on sequence
+    tester.circuit.power_on = 1
+    tester.advance_cycle()
+    tester.circuit.power_on = 0
+
+    # Should no longer be x (instead random value, computed statically for
+    # testing)
+    tester.assert_(tester.circuit.accum_output != f.UnknownValue)
+    tester.circuit.accum_output.expect(rand_value)
+
+    # Check boot with curr sum set externally
+    tester.circuit.boot = 1
+    tester.circuit.curr_sum = curr_sum = ht.BitVector.random(8)
+    tester.advance_cycle()
+    tester.circuit.boot = 0
     tester.circuit.accum_output.expect(curr_sum)
 
-# power on after boot should be random value
-tester.circuit.power_on = 1
-tester.advance_cycle()
-tester.circuit.power_on = 0
-tester.circuit.accum_output.expect(rand_value)
+    # Test sum functionality
+    for _ in range(4):
+        tester.circuit.accum_input = accum_amt = ht.BitVector.random(8)
+        tester.advance_cycle()
+        curr_sum += accum_amt
+        tester.circuit.accum_output.expect(curr_sum)
 
-# Need to use iverilog (versus verilator) for X support
-tester.compile_and_run("system-verilog", simulator="iverilog")
+    # power on after boot should be random value
+    tester.circuit.power_on = 1
+    tester.advance_cycle()
+    tester.circuit.power_on = 0
+    tester.circuit.accum_output.expect(rand_value)
+
+    # Need to use iverilog (versus verilator) for X support
+    tester.compile_and_run("system-verilog", simulator="iverilog")

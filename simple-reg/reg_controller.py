@@ -2,31 +2,36 @@ import magma as m
 import hwtypes as ht
 from main import rand_value, X, T
 
+from controller import controller, Receive, Epsilon, Channel, Rec
+
 
 class Command(m.Enum):
     POWER_ON = 0
     BOOT = 1
 
 
-RegInit = m.Receive[Command.POWER_ON, m.Receive[Command.BOOT, m.Epsilon]]
+class State(m.Enum):
+    OFF = 0
+    ON = 1
+    BOOTED = 2
 
 
+RegCtrl = Receive[Command.POWER_ON,
+                  Receive[Command.BOOT,
+                          Rec("valid", Send[T, "valid"])]]
+
+
+@controller
 class RegController:
-    def __init__(self):
-        self.io = m.IO(command=m.Channel[RegInit], curr_sum=m.In(T),
-                       accum_input=m.In(T), accum_output=m.Out(T))
-        self.accum = m.Register(T=T)
-        self.X = X()
-        self.io.accum @= self.accum.O
+    state: State
 
-    def __call__(self):
-        self.io.accum_output = self.X.O
-        self.io.command.receive(Command.POWER_ON)
+    def __call__(self, c: Channel[RegCtrl]):
+        self.state = OFF
 
-        self.io.accum_output = rand_value
-        self.io.command.receive(Command.Boot)
+        c.receive(channel.POWER_ON)
+        self.state = State.ON
 
-        self.accum = self.io.curr_sum
-        while True:
-            yield
-            self.accum = self.accum + self.io.accum_input
+        c.receive(channel.Boot)
+        self.state = State.BOOTED
+
+        c.close()
