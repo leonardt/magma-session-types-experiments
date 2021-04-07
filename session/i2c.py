@@ -19,10 +19,10 @@ I2Ctrl = Send[COND.START, Send[BitVector[7], Choose[("read", I2CRead),
 
 @check
 def i2c_controller(c: Channel[I2Ctrl]):
-    c.send(COND.STOP)
+    c.send(COND.START)
     c.send(0xDE)
     c.choose("read")
     result = c.receive()
-    c.send(COND.START)
+    # c.send(COND.STOP)
     # bad = c.receive()
     c.close()
