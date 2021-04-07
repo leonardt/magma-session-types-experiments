@@ -4,6 +4,9 @@ import inspect
 import textwrap
 
 
+_SESSION_FUNCS = ["send", "receive", "offer", "choose", "close"]
+
+
 class Checker(ast.NodeVisitor):
     def __init__(self, name, type_, filename, line_offset):
         super().__init__()
@@ -14,17 +17,26 @@ class Checker(ast.NodeVisitor):
         self.filename = filename
         self.line_offset = line_offset
 
+    def _get_name(self, node):
+        if isinstance(node, ast.Name):
+            return node.id
+        if isinstance(node, ast.Attribute) and node.attr in _SESSION_FUNCS:
+            return self._get_name(node.value)
+        if isinstance(node, ast.Call):
+            return self._get_name(node.func)
+        raise NotImplementedError(ast.dump(node), type(node))
+
     def visit_Call(self, node):
         if isinstance(self.type_, session.Rec):
             self.rec_Ts[self.type_.name] = self.type_.T
             self.type_ = self.type_.T
         if isinstance(self.type_, str):
             self.type_ = self.rec_Ts[self.type_]
+        self.visit(node.func)
         match = (isinstance(node.func, ast.Attribute) and
-                 isinstance(node.func.value, ast.Name) and
-                 node.func.value.id == self.name and
-                 node.func.attr in ["send", "receive", "offer", "choose",
-                                    "close"])
+                 node.func.attr in _SESSION_FUNCS and
+                 self._get_name(node.func.value) == self.name and
+                 node.func.attr in _SESSION_FUNCS)
         if not match:
             return
         if node.func.attr == "close":

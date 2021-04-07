@@ -32,8 +32,7 @@ def set_balance(id, balance):
 def atm(c: Channel[ATM]):
     id = c.receive()
     if not approved(id):
-        c.choose('err')
-        c.close()
+        c.choose('err').close()
         return
     balance = get_balance(id)
     c.choose('ok')
