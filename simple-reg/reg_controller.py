@@ -1,8 +1,9 @@
+from typing import TypeVar
 import magma as m
 import hwtypes as ht
 from main import rand_value, X, T
 
-from controller import controller, Receive, Epsilon, Channel, Rec
+from controller import controller, Receive, Epsilon, Channel, Rec, Choose
 
 
 class Command(m.Enum):
@@ -10,28 +11,30 @@ class Command(m.Enum):
     BOOT = 1
 
 
-class State(m.Enum):
-    OFF = 0
-    ON = 1
-    BOOTED = 2
-
-
-RegCtrl = Receive[Command.POWER_ON,
-                  Receive[Command.BOOT,
-                          Rec("valid", Send[T, "valid"])]]
+AccumRegAbstract = Receive[Command.POWER_ON,
+                           Receive[Command.BOOT, Epsilon]]
+HoldLow = Rec("HoldLow", Receive[0, "HoldLow"])
+PowerOnConcrete = Rec("PowerOnConcrete", Choose[(0, "PowerOnConcrete"),
+                                                (1, HoldLow)])
+T = m.Bits[8]
+BootConcrete = Rec("BootConcrete", Choose[((T, 0), "BootConcrete"),
+                                          ((T, 1), HoldLow)])
 
 
 @controller
 class RegController:
-    state: State
+    def __call__(self,
+                 abstract: Channel[AccumRegAbstract],
+                 power_on: Channel[PowerOnConcrete],
+                 boot: Channel[BootConcrete]):
 
-    def __call__(self, c: Channel[RegCtrl]):
-        self.state = OFF
+        def wait_for_next_command():
+            while ~abstract.receive():
+                yield power_on.send(0), boot.send(0)
 
-        c.receive(channel.POWER_ON)
-        self.state = State.ON
-
-        c.receive(channel.Boot)
-        self.state = State.BOOTED
-
-        c.close()
+        yield from wait_for_next_command()
+        yield power_on.send(1), boot.send(0)
+        yield from wait_for_next_command()
+        yield power_on.send(0), boot.send(1)
+        while True:
+            yield power_on.send(0), boot.send(0)

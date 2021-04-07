@@ -5,13 +5,12 @@ import textwrap
 import sys
 sys.path.append("../session/")
 
-from session import Receive, Epsilon, Channel, Rec
+from session import Receive, Epsilon, Channel, Rec, Choose
 from check import check
 
 
 def get_ast(fn):
     return ast.parse(textwrap.dedent(inspect.getsource(fn)))
-
 
 
 def get_types(init):

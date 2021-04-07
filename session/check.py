@@ -5,86 +5,87 @@ import textwrap
 
 
 class Checker(ast.NodeVisitor):
-    def __init__(self, c_T, filename, line_offset):
+    def __init__(self, name, type_, filename, line_offset):
         super().__init__()
-        self.c_T = c_T
+        self.name = name
+        self.type_ = type_
         self.offer_stack = []
         self.rec_Ts = {}
         self.filename = filename
         self.line_offset = line_offset
 
     def visit_Call(self, node):
-        if isinstance(self.c_T, session.Rec):
-            self.rec_Ts[self.c_T.name] = self.c_T.T
-            self.c_T = self.c_T.T
-        if isinstance(self.c_T, str):
-            self.c_T = self.rec_Ts[self.c_T]
+        if isinstance(self.type_, session.Rec):
+            self.rec_Ts[self.type_.name] = self.type_.T
+            self.type_ = self.type_.T
+        if isinstance(self.type_, str):
+            self.type_ = self.rec_Ts[self.type_]
         match = (isinstance(node.func, ast.Attribute) and
                  isinstance(node.func.value, ast.Name) and
-                 node.func.value.id == "c" and
+                 node.func.value.id == self.name and
                  node.func.attr in ["send", "receive", "offer", "choose",
                                     "close"])
         if not match:
             return
         if node.func.attr == "close":
-            if self.c_T is not session.Epsilon:
+            if self.type_ is not session.Epsilon:
                 with open(self.filename) as f:
                     file_str = f.read().splitlines()
                 lineno = node.lineno + self.line_offset - 1
                 raise SyntaxError(
                     f"Expected type Epsilon when calling closed, found "
-                    f"{self.c_T} instead",
+                    f"{self.type_} instead",
                     (self.filename, lineno, node.col_offset, file_str[lineno])
                 )
-            assert self.c_T is session.Epsilon
-            self.c_T = None
+            assert self.type_ is session.Epsilon
+            self.type_ = None
         elif node.func.attr == "send":
-            assert isinstance(self.c_T, session.Send)
+            assert isinstance(self.type_, session.Send)
             # TODO: Check datatype
-            self.c_T = self.c_T.next
+            self.type_ = self.type_.next
         elif node.func.attr == "receive":
-            if not isinstance(self.c_T, session.Receive):
+            if not isinstance(self.type_, session.Receive):
                 with open(self.filename) as f:
                     file_str = f.read().splitlines()
                 lineno = node.lineno + self.line_offset - 1
                 raise SyntaxError(
                     f"Expected type Receive when calling receive, found "
-                    f"{self.c_T} instead",
+                    f"{self.type_} instead",
                     (self.filename, lineno, node.col_offset, file_str[lineno])
                 )
             # TODO: Check datatype
-            self.c_T = self.c_T.next
+            self.type_ = self.type_.next
         elif node.func.attr == "choose":
             assert len(node.args) == 1
             assert isinstance(node.args[0], ast.Str)
             next_T = list(filter(lambda x: x[0] == node.args[0].s,
-                                 self.c_T.branches))
+                                 self.type_.branches))
             assert len(next_T) == 1
-            self.c_T = next_T[0][1]
+            self.type_ = next_T[0][1]
         # elif node.func.attr == "offer":
-        #     assert isinstance(self.c_T, session.Offer)
-        #     self.offer_stack.append(self.c_T)
+        #     assert isinstance(self.type_, session.Offer)
+        #     self.offer_stack.append(self.type_)
         else:
             raise NotImplementedError(node.func.attr)
 
     def visit_While(self, node):
         assert isinstance(node.test, ast.Constant) and node.test.value is True
-        assert isinstance(self.c_T, session.Rec)
-        curr_T = self.c_T
-        self.c_T = curr_T.T
+        assert isinstance(self.type_, session.Rec)
+        curr_T = self.type_
+        self.type_ = curr_T.T
         for child in node.body:
             self.visit(child)
-        self.c_T = None
+        self.type_ = None
 
     def visit_Return(self, node):
-        assert self.c_T is None, self.c_T
-        self.c_T = "returned"
+        assert self.type_ is None, self.type_
+        self.type_ = "returned"
 
     def visit_If(self, node):
-        if isinstance(self.c_T, session.Rec):
-            self.rec_Ts[self.c_T.name] = self.c_T.T
-            self.c_T = self.c_T.T
-        curr_T = self.c_T
+        if isinstance(self.type_, session.Rec):
+            self.rec_Ts[self.type_.name] = self.type_.T
+            self.type_ = self.type_.T
+        curr_T = self.type_
         # TODO: Check all offers are matched
         is_offer = (isinstance(node.test, ast.Call) and
                     isinstance(node.test.func, ast.Attribute) and
@@ -99,28 +100,30 @@ class Checker(ast.NodeVisitor):
             next_T = list(filter(lambda x: x[0] == node.test.args[0].s,
                                  curr_T.branches))
             assert len(next_T) == 1
-            self.c_T = next_T[0][1]
+            self.type_ = next_T[0][1]
 
         for child in node.body:
             self.visit(child)
-        true_T = self.c_T
+        true_T = self.type_
         if node.orelse:
-            self.c_T = curr_T
+            self.type_ = curr_T
             for child in node.orelse:
                 self.visit(child)
-            false_T = self.c_T
+            false_T = self.type_
             if false_T != "returned" and true_T != "returned":
                 assert true_T == false_T, (true_T, false_T)
 
     def visit_FunctionDef(self, node):
         self.generic_visit(node)
-        assert self.c_T is None
+        assert self.type_ is None
 
 
 def check(fn):
     annotations = fn.__annotations__
-    assert 'c' in annotations
-    c_T = annotations['c'].T
     caller = inspect.getframeinfo(inspect.stack()[1][0])
     tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
-    Checker(c_T, caller.filename, caller.lineno - 2).visit(tree)
+
+    for key, value in fn.__annotations__.items():
+        if not isinstance(value, session.Channel):
+            continue
+        Checker(key, value.T, caller.filename, caller.lineno - 2).visit(tree)
