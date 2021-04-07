@@ -33,6 +33,7 @@ def atm(c: Channel[ATM]):
     id = c.receive()
     if not approved(id):
         c.choose('err')
+        # TODO: support close/return at this point
     else:
         balance = get_balance(id)
         c.choose('ok')
@@ -41,6 +42,7 @@ def atm(c: Channel[ATM]):
             balance += amount
             set_balance(id, balance)
             c.send(balance)
+        # TODO: Would be nice if we could support else here
         elif c.offer("withdraw"):
             amount = c.receive()
             if balance >= amount:
