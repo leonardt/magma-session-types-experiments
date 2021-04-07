@@ -22,6 +22,6 @@ def i2c_controller(c: Channel[I2Ctrl]):
     c.send(0xDE)
     c.choose("read")
     result = c.receive()
-    # c.send(COND.STOP)
+    c.send(COND.STOP)
     # bad = c.receive()
     c.close()
