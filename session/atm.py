@@ -32,10 +32,7 @@ def set_balance(id, balance):
 def atm(c: Channel[ATM]):
     id = c.receive()
     if not approved(id):
-        # c.choose('err').close()
         c.choose('err')
-        c.close()
-        # return
     else:
         balance = get_balance(id)
         c.choose('ok')
@@ -44,16 +41,14 @@ def atm(c: Channel[ATM]):
             balance += amount
             set_balance(id, balance)
             c.send(balance)
-            c.close()
         elif c.offer("withdraw"):
             amount = c.receive()
             if balance >= amount:
                 balance -= amount
                 c.choose('ok')
-                c.close()
             else:
                 c.choose('err')
-                c.close()
+    c.close()
 
 
 @check
