@@ -9,7 +9,6 @@ class COND(enum.Enum):
     START = enum.auto()
 
 
-
 I2CStop = Send[COND.STOP, Epsilon]
 I2CWrite = Send[BitVector[8], I2CStop]
 I2CRead = Receive[BitVector[8], I2CStop]
