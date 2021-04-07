@@ -112,6 +112,8 @@ class Checker(ast.NodeVisitor):
             false_T = self.type_
             if false_T != "returned" and true_T != "returned":
                 assert true_T == false_T, (true_T, false_T)
+        if true_T == "returned":
+            self.type_ = curr_T
 
     def visit_FunctionDef(self, node):
         self.generic_visit(node)
