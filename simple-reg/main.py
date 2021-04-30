@@ -17,7 +17,7 @@ class X(m.Circuit):
 rand_value = ht.BitVector.random(8)
 
 
-class Main(m.Circuit):
+class AccumReg(m.Circuit):
     """
     `power_on` must be held high for one cycle, otherwise the output is x
     `boot` must be held high for one cycle **after** power_on, otherwise the
@@ -42,20 +42,20 @@ class Main(m.Circuit):
 
 
 if __name__ == "__main__":
-    tester = f.SynchronousTester(Main)
+    tester = f.SynchronousTester(AccumReg)
 
     # Need to advance once to propogate values
     tester.advance_cycle()
     # Should be x initially
-    tester.expect(Main.accum_output, f.UnknownValue)
+    tester.expect(AccumReg.accum_output, f.UnknownValue)
     tester.advance_cycle()
-    tester.expect(Main.accum_output, f.UnknownValue)
+    tester.expect(AccumReg.accum_output, f.UnknownValue)
 
     # boot without power on should still be x
     tester.circuit.boot = 1
     tester.advance_cycle()
     tester.circuit.boot = 0
-    tester.expect(Main.accum_output, f.UnknownValue)
+    tester.expect(AccumReg.accum_output, f.UnknownValue)
 
     # test power on sequence
     tester.circuit.power_on = 1

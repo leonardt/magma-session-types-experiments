@@ -28,6 +28,7 @@ class Checker(ast.NodeVisitor):
 
     def visit_Call(self, node):
         if isinstance(self.type_, session.Rec):
+            exit(1)
             self.rec_Ts[self.type_.name] = self.type_.T
             self.type_ = self.type_.T
         if isinstance(self.type_, str):
@@ -96,7 +97,6 @@ class Checker(ast.NodeVisitor):
     def visit_If(self, node):
         if isinstance(self.type_, session.Rec):
             self.rec_Ts[self.type_.name] = self.type_.T
-            self.type_ = self.type_.T
         curr_T = self.type_
         # TODO: Check all offers are matched
         is_offer = (isinstance(node.test, ast.Call) and
@@ -116,11 +116,15 @@ class Checker(ast.NodeVisitor):
 
         for child in node.body:
             self.visit(child)
+        if isinstance(self.type_, str) and self.type_ != "returned":
+            self.type_ = self.rec_Ts[self.type_]
         true_T = self.type_
         if node.orelse:
             self.type_ = curr_T
             for child in node.orelse:
                 self.visit(child)
+            if isinstance(self.type_, str) and self.type_ != "returned":
+                self.type_ = self.rec_Ts[self.type_]
             false_T = self.type_
             if false_T != "returned" and true_T != "returned":
                 assert true_T == false_T, (true_T, false_T)
