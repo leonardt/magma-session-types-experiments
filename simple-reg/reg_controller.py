@@ -6,11 +6,11 @@ class RegController:
     def __init__(self):
         pass
 
-    def __call__(self, config_en: m.Bit, config_data: m.Bit) -> (m.Bit, m.Bit):
-        while ~config_en | (config_data != 0):
+    def __call__(self, advance: m.Bit) -> (m.Bit, m.Bit):
+        while ~advance:
             yield m.bit(0), m.bit(0)
         yield m.bit(1), m.bit(0)
-        while ~config_en | (config_data != 1):
+        while ~advance:
             yield m.bit(0), m.bit(0)
         yield m.bit(0), m.bit(1)
         while True:
@@ -18,4 +18,4 @@ class RegController:
 
 
 if __name__ == "__main__":
-    m.compile("build/RegController", Regcontroller, inline=True)
+    m.compile("build/RegController", RegController, inline=True)
