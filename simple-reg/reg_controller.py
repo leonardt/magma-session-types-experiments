@@ -1,7 +1,4 @@
-import sys
-sys.path.append("../session/")
-
-from session import Receive, Epsilon, Channel, Rec, Choose
+from controller import Receive, Epsilon, Channel, controller
 import magma as m
 
 
@@ -14,16 +11,19 @@ RegCtrl = Receive[Command.POWER_ON,
                   Receive[Command.BOOT, Epsilon]]
 
 
-@m.coroutine()
+@controller()
 class RegController:
     def __init__(self):
         pass
 
-    def __call__(self, valid: m.Bit, command: Command) -> (m.Bit, m.Bit):
-        while ~valid | (command != Command.POWER_ON):
+    # def __call__(self, valid: m.Bit, command: Command) -> (m.Bit, m.Bit):
+    def __call__(self, chan: Channel[RegCtrl]) -> (m.Bit, m.Bit):
+        # while ~valid | (command != Command.POWER_ON):
+        while ~chan.receive(Command.POWER_ON):
             yield m.bit(0), m.bit(0)
         yield m.bit(1), m.bit(0)
-        while ~valid | (command != Command.BOOT):
+        # while ~valid | (command != Command.BOOT):
+        while ~chan.receive(Command.BOOT):
             yield m.bit(0), m.bit(0)
         yield m.bit(0), m.bit(1)
         while True:
