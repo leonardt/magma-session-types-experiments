@@ -9,15 +9,16 @@ class MainController:
     def __init__(self):
         pass
 
-    def __call__(self, config_en: m.Bit, config_data: m.Bit) -> m.Bit:
+    def __call__(self, config_en: m.Bit, config_data: m.Bit) -> \
+            (m.Bit, m.Bits[1]):
         while ~config_en | (config_data != 0):
-            yield m.bit(0)
-        yield m.bit(1)
+            yield m.bit(0), m.bits(0, 1)
+        yield m.bit(1), m.bits(0, 1)
         while ~config_en | (config_data != 1):
-            yield m.bit(0)
-        yield m.bit(1)
+            yield m.bit(0), m.bits(0, 1)
+        yield m.bit(1), m.bits(1, 1)
         while True:
-            yield m.bit(0)
+            yield m.bit(0), m.bits(0, 1)
 
 
 class Main(m.Circuit):
@@ -32,7 +33,8 @@ class Main(m.Circuit):
     reg_controller = RegController()
     main_controller.config_en @= io.config_en
     main_controller.config_data @= io.config_data
-    reg_controller.advance @= main_controller.O
+    reg_controller.valid @= main_controller.O0
+    reg_controller.command @= main_controller.O1
     accum_reg.power_on @= reg_controller.O0
     accum_reg.boot @= reg_controller.O1
     # Hard code value
