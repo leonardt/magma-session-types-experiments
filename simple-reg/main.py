@@ -33,8 +33,8 @@ class Main(m.Circuit):
     reg_controller = RegController()
     main_controller.config_en @= io.config_en
     main_controller.config_data @= io.config_data
-    reg_controller.chan_valid @= main_controller.O0
-    reg_controller.chan_data @= main_controller.O1
+    reg_controller.chan.valid @= main_controller.O0
+    reg_controller.chan.data @= main_controller.O1
     accum_reg.power_on @= reg_controller.O0
     accum_reg.boot @= reg_controller.O1
     # Hard code value

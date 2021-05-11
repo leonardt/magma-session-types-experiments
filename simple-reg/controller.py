@@ -35,25 +35,11 @@ class _ChannelRewriter(cst.CSTTransformer):
             # TODO: Check annotation
             if param.name.value == "chan":
                 new_params.append(
-                    cst.Param(
-                        cst.Name(param.name.value + "_valid"),
-                        # TODO: Assumes `m` symbol present
-                        cst.Annotation(
-                            cst.Attribute(cst.Name("m"), cst.Name("Bit"))
-                        )
-                    )
-                )
-                new_params.append(
-                    cst.Param(
-                        cst.Name(param.name.value + "_data"),
-                        cst.Annotation(
-                            cst.Subscript(
-                                # TODO: Assumes `m` symbol present
-                                cst.Attribute(cst.Name("m"), cst.Name("Bits")),
-                                # TODO: Assumes width
-                                [cst.SubscriptElement(cst.Index(cst.Integer("1")))]
-                            )
-                        )
+                    param.with_changes(
+                        annotation=cst.Annotation(cst.parse_expression(
+                            'm.Product.from_fields("anon",'
+                            ' {"valid": m.Bit, "data": m.Bits[1]})'
+                        ))
                     )
                 )
             else:
@@ -71,13 +57,13 @@ class _ChannelRewriter(cst.CSTTransformer):
         ):
             # TODO: Assert we are checking a channel
             assert len(updated_node.args) == 1, "assume receive(<ENUM>)"
-            chan_name = updated_node.func.value.value
+            chan_name = updated_node.func.value
             expected_value = updated_node.args[0].value
             return cst.BinaryOperation(
-                cst.Name(chan_name + "_valid"),
+                cst.Attribute(chan_name, cst.Name("valid")),
                 cst.BitAnd(),
                 cst.Comparison(
-                    cst.Name(chan_name + "_data"),
+                    cst.Attribute(chan_name, cst.Name("data")),
                     [cst.ComparisonTarget(cst.Equal(), expected_value)],
                     lpar=[cst.LeftParen()],
                     rpar=[cst.RightParen()]
