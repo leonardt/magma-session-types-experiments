@@ -1,9 +1,10 @@
 from typing import Optional, MutableMapping
+from libcst.codemod import CodemodContext
 import libcst as cst
 import libcst.matchers as match
 from ast_tools.stack import SymbolTable
 from ast_tools.passes import PASS_ARGS_T, Pass, apply_cst_passes
-from ast_tools.cst_utils import to_module
+from ast_tools.cst_utils import to_module, InsertStatementsVisitor
 import magma as m
 import ast
 import inspect
@@ -25,10 +26,7 @@ def get_types(init):
     return collector.types
 
 
-class _ChannelRewriter(cst.CSTTransformer):
-    def __init__(self):
-        pass
-
+class _ChannelRewriter(InsertStatementsVisitor):
     def leave_Parameters(self, original_node, updated_node):
         new_params = []
         for param in updated_node.params:
@@ -47,30 +45,42 @@ class _ChannelRewriter(cst.CSTTransformer):
 
         return updated_node.with_changes(params=new_params)
 
-    def leave_Call(self, original_node, updated_node):
-        if match.matches(
-            updated_node.func,
-            match.Attribute(
-                match.DoNotCare(),
-                match.Name("receive")
-            )
-        ):
-            # TODO: Assert we are checking a channel
-            assert len(updated_node.args) == 1, "assume receive(<ENUM>)"
-            chan_name = updated_node.func.value
-            expected_value = updated_node.args[0].value
-            return cst.BinaryOperation(
-                cst.Attribute(chan_name, cst.Name("valid")),
-                cst.BitAnd(),
-                cst.Comparison(
-                    cst.Attribute(chan_name, cst.Name("data")),
-                    [cst.ComparisonTarget(cst.Equal(), expected_value)],
+    def leave_Expr(self, original_node, updated_node):
+        if isinstance(updated_node.value, cst.Call):
+            call = updated_node.value
+            if match.matches(
+                call.func,
+                match.Attribute(
+                    match.DoNotCare(),
+                    match.Name("receive")
+                )
+            ):
+                # TODO: Assert we are checking a channel
+                assert len(call.args) == 2, "assume receive(<ENUM>)"
+                assert call.args[1].keyword.value == "wait_outputs"
+                chan_name = call.func.value
+                expected_value = call.args[0].value
+                wait_outputs = call.args[1].value
+                cond = cst.BinaryOperation(
+                    cst.Attribute(chan_name, cst.Name("valid")),
+                    cst.BitAnd(),
+                    cst.Comparison(
+                        cst.Attribute(chan_name, cst.Name("data")),
+                        [cst.ComparisonTarget(cst.Equal(),
+                                              expected_value)],
+                        lpar=[cst.LeftParen()],
+                        rpar=[cst.RightParen()]
+                    ),
                     lpar=[cst.LeftParen()],
                     rpar=[cst.RightParen()]
-                ),
-                lpar=[cst.LeftParen()],
-                rpar=[cst.RightParen()]
-            )
+                )
+                self.insert_statements_before_current([cst.While(
+                    cst.UnaryOperation(cst.BitInvert(), cond),
+                    cst.IndentedBlock([
+                        cst.SimpleStatementLine([
+                            cst.Expr(cst.Yield(wait_outputs))])])
+                )])
+                return cst.FlattenSentinel([])
         return updated_node
 
 
@@ -79,7 +89,7 @@ class _RewriteChannels(Pass):
                 tree: cst.CSTNode,
                 env: SymbolTable,
                 metadata: MutableMapping) -> PASS_ARGS_T:
-        rewriter = _ChannelRewriter()
+        rewriter = _ChannelRewriter(CodemodContext())
         return tree.visit(rewriter), env, metadata
 
 
@@ -94,8 +104,16 @@ def controller(pre_passes=[], post_passes=[],
                has_enable: bool = False,
                reset_priority: bool = True):
     def inner(cls):
+        cls.__call__ = apply_cst_passes(
+            passes=[_RewriteChannels()],
+            debug=debug,
+            env=env,
+            path=path,
+            file_name=file_name,
+        )(cls.__call__)
+
         return m.coroutine(
-            pre_passes=pre_passes + [_RewriteChannels()],
+            pre_passes=pre_passes,
             post_passes=post_passes,
             debug=debug,
             env=env,
