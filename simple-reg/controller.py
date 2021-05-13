@@ -27,6 +27,17 @@ def get_types(init):
 
 
 class _ChannelRewriter(InsertStatementsVisitor):
+    """
+    Create channels:
+        * for each send/receive in type, create a valid and data port
+          * send/receive of the same type can share a channel
+        * Find offer/choose with greatest number of labels, create valid and
+          data port with number of bits needed to encode all labels
+          * offer/choose with less labels can use same data port
+
+    NOTE: eventually we can try to encode everything in one input and one
+    output data port (using max number of bits needed)
+    """
     def leave_Parameters(self, original_node, updated_node):
         new_params = []
         for param in updated_node.params:
