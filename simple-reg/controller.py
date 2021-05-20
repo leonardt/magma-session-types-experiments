@@ -38,9 +38,17 @@ class _ChannelRewriter(InsertStatementsVisitor):
     NOTE: eventually we can try to encode everything in one input and one
     output data port (using max number of bits needed)
     """
+    def __init__(self, env, ctx):
+        super().__init__(ctx)
+        self.env = env
+
     def leave_Parameters(self, original_node, updated_node):
         new_params = []
         for param in updated_node.params:
+            if param.annotation is not None:
+                annotation = eval(to_module(param.annotation.annotation).code,
+                                  {}, self.env)
+                print(annotation.T)
             # TODO: Check annotation
             if param.name.value == "chan":
                 new_params.append(
@@ -100,7 +108,7 @@ class _RewriteChannels(Pass):
                 tree: cst.CSTNode,
                 env: SymbolTable,
                 metadata: MutableMapping) -> PASS_ARGS_T:
-        rewriter = _ChannelRewriter(CodemodContext())
+        rewriter = _ChannelRewriter(env, CodemodContext())
         return tree.visit(rewriter), env, metadata
 
 

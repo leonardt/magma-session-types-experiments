@@ -23,12 +23,16 @@ class AccumReg(m.Circuit):
     `boot` must be held high for one cycle **after** power_on, otherwise the
     contents of the register will be random
     """
-    io = m.IO(power_on=m.In(m.Bit), boot=m.In(m.Bit), curr_sum=m.In(T),
-              accum_input=m.In(T), accum_output=m.Out(T)) + m.ClockIO()
+    io = m.IO(power_on=m.In(m.Bit), boot=m.In(m.Bit), initial_sum=m.In(T),
+              operation=m.In(m.Bit), accum_input=m.In(T), accum_output=m.Out(T)
+              ) + m.ClockIO()
     accum_reg = m.Register(T, init=rand_value, reset_type=m.Reset)()
     # if boot is occuring, initialize the register value from external source
     # otherwise, sum the input with the register value
-    accum_reg.I @= m.mux([accum_reg.O + io.accum_input, io.curr_sum], io.boot)
+    accum_result = m.mux([accum_reg.O + io.accum_input,
+                          accum_reg.O * io.accum_input], io.operation)
+    accum_reg.I @= m.mux([accum_result,
+                          io.initial_sum], io.boot)
 
     powered_on = m.Register(m.Bit, init=False)()
     powered_on.I @= m.mux([powered_on.O, 1], io.power_on)
@@ -69,17 +73,26 @@ if __name__ == "__main__":
 
     # Check boot with curr sum set externally
     tester.circuit.boot = 1
-    tester.circuit.curr_sum = curr_sum = ht.BitVector.random(8)
+    tester.circuit.initial_sum = initial_sum = ht.BitVector.random(8)
     tester.advance_cycle()
     tester.circuit.boot = 0
-    tester.circuit.accum_output.expect(curr_sum)
+    tester.circuit.accum_output.expect(initial_sum)
+    tester.circuit.operation = 0
 
     # Test sum functionality
     for _ in range(4):
         tester.circuit.accum_input = accum_amt = ht.BitVector.random(8)
         tester.advance_cycle()
-        curr_sum += accum_amt
-        tester.circuit.accum_output.expect(curr_sum)
+        initial_sum += accum_amt
+        tester.circuit.accum_output.expect(initial_sum)
+
+    # test mul
+    tester.circuit.operation = 1
+    for _ in range(4):
+        tester.circuit.accum_input = accum_amt = ht.BitVector.random(8)
+        tester.advance_cycle()
+        initial_sum *= accum_amt
+        tester.circuit.accum_output.expect(initial_sum)
 
     # power on after boot should be random value
     tester.circuit.power_on = 1

@@ -39,7 +39,8 @@ class Main(m.Circuit):
     accum_reg.boot @= reg_controller.O1
     # Hard code value
     accum_reg.accum_input @= 1
-    accum_reg.curr_sum @= 0xDE
+    accum_reg.initial_sum @= 0xDE
+    accum_reg.operation @= 0
     io.accum_output @= accum_reg.accum_output
 
 
@@ -76,14 +77,14 @@ if __name__ == "__main__":
     tester.circuit.config_data = 1
     tester.advance_cycle()
     tester.circuit.config_en = 0
-    curr_sum = 0xDE
-    tester.circuit.accum_output.expect(curr_sum)
+    initial_sum = 0xDE
+    tester.circuit.accum_output.expect(initial_sum)
 
     # Test sum functionality
     for _ in range(4):
         tester.advance_cycle()
-        curr_sum += 1
-        tester.circuit.accum_output.expect(curr_sum)
+        initial_sum += 1
+        tester.circuit.accum_output.expect(initial_sum)
 
     # Need to use iverilog (versus verilator) for X support
     tester.compile_and_run("system-verilog", simulator="iverilog")
