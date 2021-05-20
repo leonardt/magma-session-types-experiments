@@ -12,7 +12,7 @@ import textwrap
 import sys
 sys.path.append("../session/")
 
-from session import Receive, Epsilon, Channel, Rec, Choose
+from session import Receive, Epsilon, Channel, Rec, Choose, Send, Parallel
 from check import check
 
 

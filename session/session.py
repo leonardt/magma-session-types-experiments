@@ -76,7 +76,7 @@ class Rec:
         self.T = T
 
     def __repr__(self):
-        return f"Rec(\"{self.name}\", {self.T}"
+        return f"Rec(\"{self.name}\", {self.T})"
 
 
 class ChannelMeta(type):
@@ -87,3 +87,11 @@ class ChannelMeta(type):
 class Channel(metaclass=ChannelMeta):
     def __init__(self, T):
         self.T = T
+
+
+class Parallel(SessionType):
+    def __init__(self, *Ts):
+        self.Ts = Ts
+
+    def __repr__(self):
+        return f"Parallel({', '.join(str(t) for t in self.Ts)})"

@@ -1,4 +1,4 @@
-from controller import Receive, Epsilon, Channel, controller, Send
+from controller import Receive, Epsilon, Channel, controller, Send, Parallel
 import magma as m
 
 
