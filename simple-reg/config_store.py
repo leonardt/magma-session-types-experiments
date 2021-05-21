@@ -23,7 +23,7 @@ class RegCfgController:
 
     def __call__(self, chan: Channel[RegCfg], init: m.UInt[8], op: m.Bit) -> \
             m.Valid[m.Bits[2]]:
-        id = chan.receive(wait_outputs1(m.Valid[m.Bits[2]](0, 0), ))
+        id = chan.receive(wait_outputs=(m.Valid[m.Bits[2]](0, 0), ))
         yield m.Valid[m.Bits[2]](1, id)
         chan.send(init, wait_outputs=(m.Valid[m.Bits[2]](1, id), ))
         chan.send(op, wait_outputs=(m.Valid[m.Bits[2]](1, id), ))
