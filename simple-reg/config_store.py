@@ -21,10 +21,11 @@ class RegCfgController:
     def __init__(self):
         pass
 
-    def __call__(self, chan: Channel[RegCfg], init: m.UInt[8], op: m.Bit) -> \
-            m.Valid[m.Bits[2]]:
+    def __call__(self, chan: Channel[RegCfg], ready: m.Bit, init: m.UInt[8],
+                 op: m.Bit) -> m.Valid[m.Bits[2]]:
         id = chan.receive(wait_outputs=(m.Valid[m.Bits[2]](0, 0), ))
-        yield m.Valid[m.Bits[2]](1, id)
+        while ~ready:
+            yield m.Valid[m.Bits[2]](1, id)
         chan.send(init, wait_outputs=(m.Valid[m.Bits[2]](1, id), ))
         chan.send(op, wait_outputs=(m.Valid[m.Bits[2]](1, id), ))
         return m.Valid[m.Bits[2]](0, id)
