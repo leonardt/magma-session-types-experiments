@@ -1,13 +1,13 @@
 import magma as m
 from clock_gen import ClockGenerator
-from cfg_store import ConfigStore
+from cfg_store import ConfigStore, ConfigReq, ConfigData
 
 
 class SRAM(m.Circuit):
     io = m.IO(
         run_bisr=m.In(m.Bit),
-        config_data_store=m.Producer(m.ReadyValid[m.Bits[32]]),
-        config_data_load=m.Consumer(m.ReadyValid[m.Bits[32]]),
+        config_req=m.Producer(m.ReadyValid[ConfigReq]),
+        config_resp=m.Consumer(m.ReadyValid[ConfigData]),
         raddr=m.In(m.UInt[8]),
         rdata=m.Out(m.UInt[8]),
         waddr=m.In(m.UInt[8]),
@@ -18,16 +18,16 @@ class SRAM(m.Circuit):
 
 class ConfigStoreArbiter(m.Circuit):
     io = m.IO(
-        config_data_in=m.Array[
+        config_tx_in=m.Array[
             2,
             m.Tuple[
-                m.Consumer(m.ReadyValid[m.Bits[32]]),
-                m.Producer(m.ReadyValid[m.Bits[32]])
+                m.Consumer(m.ReadyValid[ConfigReq]),
+                m.Producer(m.ReadyValid[ConfigData])
             ]
         ],
-        config_data_out=m.Tuple[
-            m.Consumer(m.ReadyValid[m.Bits[32]]),
-            m.Producer(m.ReadyValid[m.Bits[32]])
+        config_tx_out=m.Tuple[
+            m.Producer(m.ReadyValid[ConfigReq]),
+            m.Consumer(m.ReadyValid[ConfigData])
         ],
         boot=m.In(m.Bit)
     ) + m.ClockIO()
@@ -58,17 +58,17 @@ class Main(m.Circuit):
     config_store = ConfigStore()
     config_store.CLK @= clock_gen.clk_out
     config_store.boot @= gc.config_store_boot
-    config_store.config_data_in @= arbiter.config_data_out[1]
-    config_store.config_data_out @= arbiter.config_data_out[0]
+    config_store.config_req @= arbiter.config_tx_out[0]
+    config_store.config_resp @= arbiter.config_tx_out[1]
 
     srams = [SRAM() for _ in range(2)]
     for i in range(2):
         srams[i].run_bisr @= gc.sram_run_bisr[i]
         srams[i].CLK @= clock_gen.clk_out
-        arbiter.config_data_in[i][0] @= (
-            srams[i].config_data_store)
-        arbiter.config_data_in[i][1] @= (
-            srams[i].config_data_load)
+        arbiter.config_tx_in[i][0] @= (
+            srams[i].config_req)
+        arbiter.config_tx_in[i][1] @= (
+            srams[i].config_resp)
         srams[i].raddr @= 0
         srams[i].waddr @= 0
         srams[i].wdata @= 0
