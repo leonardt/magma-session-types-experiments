@@ -1,6 +1,7 @@
 import magma as m
 from clock_gen import ClockGenerator
 from cfg_store import ConfigStore, ConfigReq, ConfigData
+from cfg_store_arb import ConfigStoreArbiter
 
 
 class SRAM(m.Circuit):
@@ -13,23 +14,6 @@ class SRAM(m.Circuit):
         waddr=m.In(m.UInt[8]),
         wdata=m.In(m.UInt[8]),
         wen=m.In(m.Enable)
-    ) + m.ClockIO()
-
-
-class ConfigStoreArbiter(m.Circuit):
-    io = m.IO(
-        config_tx_in=m.Array[
-            2,
-            m.Tuple[
-                m.Consumer(m.ReadyValid[ConfigReq]),
-                m.Producer(m.ReadyValid[ConfigData])
-            ]
-        ],
-        config_tx_out=m.Tuple[
-            m.Producer(m.ReadyValid[ConfigReq]),
-            m.Consumer(m.ReadyValid[ConfigData])
-        ],
-        boot=m.In(m.Bit)
     ) + m.ClockIO()
 
 
