@@ -62,13 +62,14 @@ class ConfigStore(m.Circuit):
 if __name__ == "__main__":
     import fault
     tester = fault.Tester(ConfigStore, ConfigStore.CLK)
+    # Should not be ready until booted
     tester.circuit.config_req.ready.expect(0)
     tester.step(2)
     tester.circuit.boot = 1
     tester.step(2)
     tester.circuit.boot = 0
     tester.circuit.config_req.ready.expect(1)
-    tester.step(2)
+
     tester.circuit.config_req.data.addr = 0xDE
     tester.circuit.config_req.data.data = 0xAD
     tester.circuit.config_req.data.cmd = CONFIG_CMD.WRITE
