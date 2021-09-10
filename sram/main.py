@@ -1,4 +1,5 @@
 import magma as m
+from clock_gen import ClockGenerator
 
 
 class SRAM(m.Circuit):
@@ -37,19 +38,6 @@ class ConfigStore(m.Circuit):
         config_data_out=m.Producer(m.ReadyValid[m.Bits[32]]),
         boot=m.In(m.Bit)
     ) + m.ClockIO()
-
-
-class ClockGenerator(m.Circuit):
-    io = m.IO(
-        init=m.In(m.Bit),
-        clk_out=m.Out(m.Clock)
-    ) + m.ClockIO()
-    en = m.Register(m.Bit)()
-    en.I @= en.O | io.init
-    tff = m.Register(m.Bit, has_enable=True)()
-    tff.CE @= en.O
-    tff.I @= tff.O ^ 1
-    io.clk_out @= m.clock(tff.O)
 
 
 class GlobalController(m.Circuit):
